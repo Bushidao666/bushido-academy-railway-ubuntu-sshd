@@ -8,7 +8,7 @@ RUN userdel -r ubuntu 2>/dev/null || true
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y \
-        iproute2 iputils-ping openssh-server telnet sudo \
+        iproute2 iputils-ping openssh-server telnet sudo git zsh \
         wget tar ca-certificates curl gnupg \
         python3 python3-pip python3-venv python-is-python3 \
     && apt-get clean \
@@ -38,7 +38,9 @@ RUN mkdir -p /etc/apt/keyrings \
 
 # Copy ssh user config to configure user's password and authorized keys
 COPY ssh-user-config.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/ssh-user-config.sh
+COPY scripts/install-bushido-zsh-global.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/ssh-user-config.sh /usr/local/bin/install-bushido-zsh-global.sh \
+    && /usr/local/bin/install-bushido-zsh-global.sh
 
 # Expose port 22
 EXPOSE 22
