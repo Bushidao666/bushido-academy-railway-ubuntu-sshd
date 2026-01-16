@@ -1,39 +1,40 @@
 FROM ubuntu:22.04
 
-# --- SUA CONFIGURAÇÃO ORIGINAL ---
+# Starting Ubuntu 24.04 official docker image has user ubuntu with UID/GID 1000
 # Remove the default ubuntu user to free up UID/GID 1000
 RUN userdel -r ubuntu 2>/dev/null || true
 
-# Evita travar o deploy com perguntas
-ENV DEBIAN_FRONTEND=noninteractive
-
-# --- AQUI ENTRAM APENAS AS ADIÇÕES QUE VOCÊ PEDIU + WGET (Necessário pro VS Code) ---
-RUN apt-get update && apt-get upgrade -y \
+# Install dependencies with disable root login for security reasons
+RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y \
-    # Seus pacotes originais:
-    iproute2 iputils-ping openssh-server telnet sudo \
-    # Dependências para as ferramentas que você pediu:
-    wget \
-    curl \
-    git \
-    python3 \
-    python3-pip \
-    build-essential \
-    # Instalação do Node.js 20 (Necessário para as CLIs de IA)
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    # Instalação das CLIs Globais solicitadas
-    && npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli @qwen-code/qwen-code \
-    # Limpeza
+        iproute2 iputils-ping openssh-server telnet sudo \
+        wget tar ca-certificates curl gnupg \
+        python3 python3-pip python3-venv python-is-python3 \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# --- VOLTA PARA SUA CONFIGURAÇÃO ORIGINAL (SEM ALTERAÇÕES) ---
-RUN mkdir -p /run/sshd \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && mkdir -p /run/sshd \
     && chmod 755 /run/sshd \
     && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
     # Disable root login
     && echo "PermitRootLogin no" >> /etc/ssh/sshd_config
+
+# --- ADD: Node.js + CLIs ---
+# NodeSource repo (Node 22). Se quiser outra major, me diga e eu troco o "22" por "20" etc.
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && npm install -g @anthropic-ai/claude-code \
+                      @openai/codex \
+                      @google/gemini-cli \
+                      @qwen-code/qwen-code \
+    && npm cache clean --force \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy ssh user config to configure user's password and authorized keys
 COPY ssh-user-config.sh /usr/local/bin/
